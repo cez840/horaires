@@ -12,9 +12,12 @@
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f2f2f7;color:#1a1a1a;font-size:14px;min-height:100vh;padding-bottom:env(safe-area-inset-bottom)}
 .nav{background:#fff;border-bottom:1px solid #e5e5e5;display:flex;align-items:center;justify-content:space-between;padding:0 16px;height:52px;position:sticky;top:0;z-index:100}
 .nav-title{font-size:15px;font-weight:600}
-.nav-week{display:flex;align-items:center;gap:6px}
-.nav-week label{font-size:12px;color:#888}
-.nav-week input[type=date]{font-size:12px;border:1px solid #ddd;border-radius:6px;padding:3px 8px;background:#fff;color:#1a1a1a;max-width:135px}
+.week-nav{display:flex;align-items:center;gap:6px}
+.week-nav-btn{background:none;border:1px solid #e0e0e0;border-radius:8px;width:32px;height:32px;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#555;-webkit-appearance:none}
+.week-nav-btn:active{background:#f0f0f0}
+.week-label{font-size:12px;font-weight:500;color:#1a1a1a;min-width:90px;text-align:center;cursor:pointer;padding:4px 6px;border-radius:6px;border:1px solid #e0e0e0}
+.week-label:active{background:#f0f0f0}
+input#hidden-date{position:absolute;opacity:0;pointer-events:none;width:1px;height:1px}
 .main{max-width:640px;margin:0 auto;padding:14px 12px}
 .settings-drawer{background:#fff;border-radius:12px;margin-bottom:12px;overflow:hidden;border:1px solid #e5e5e5}
 .settings-head{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;cursor:pointer;user-select:none;-webkit-user-select:none}
@@ -33,7 +36,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .mp-value{font-size:22px;font-weight:700;color:#fff}
 .mp-sub{font-size:11px;color:#666;margin-top:2px}
 .mp-bar-wrap{background:#ffffff18;border-radius:4px;height:5px;margin-top:6px;overflow:hidden}
-.mp-bar{height:5px;border-radius:4px;background:linear-gradient(90deg,#7F77DD,#a78bfa);transition:width .5s}
+.mp-bar{height:5px;border-radius:4px;transition:width .5s}
 .sup-chip{display:inline-block;background:#EF9F2720;color:#EF9F27;font-size:11px;border-radius:20px;padding:2px 8px;margin-top:4px}
 .salary-row{border-top:1px solid #ffffff12;padding-top:12px;display:flex;align-items:flex-end;justify-content:space-between}
 .salary-net{font-size:26px;font-weight:700;color:#4ade80}
@@ -84,9 +87,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <body>
 <nav class="nav">
   <div class="nav-title">⏱ Mes horaires</div>
-  <div class="nav-week">
-    <label>Sem. du</label>
-    <input type="date" id="week-start">
+  <div class="week-nav">
+    <button class="week-nav-btn" onclick="shiftWeek(-1)">&#8249;</button>
+    <div class="week-label" id="week-label" onclick="openCal()">— —</div>
+    <button class="week-nav-btn" onclick="shiftWeek(1)">&#8250;</button>
+    <input type="date" id="hidden-date">
   </div>
 </nav>
 <div class="main">
@@ -165,30 +170,121 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <script>
 var DAYS=[{short:'Lun',long:'Lundi'},{short:'Mar',long:'Mardi'},{short:'Mer',long:'Mercredi'},{short:'Jeu',long:'Jeudi'},{short:'Ven',long:'Vendredi'},{short:'Sam',long:'Samedi'},{short:'Dim',long:'Dimanche'}];
 var KEYS=['p1s','p1e','p2s','p2e','pause'];
-var weekInput=document.getElementById('week-start');
- 
-function getTodayMonday(){
-  var d=new Date(),day=d.getDay();
-  d.setDate(d.getDate()+(day===0?-6:1-day));
-  return d.toISOString().slice(0,10);
+
+// --- GESTION DE LA SEMAINE COURANTE ---
+var currentMonday = getMonday(new Date());
+
+function getMonday(d){
+  var day=d.getDay();
+  var diff=day===0?-6:1-day;
+  var m=new Date(d);
+  m.setDate(d.getDate()+diff);
+  m.setHours(0,0,0,0);
+  return m;
 }
-weekInput.value=getTodayMonday();
- 
-function todayIndex(){
-  var base=weekInput.value;
-  if(!base)return -1;
-  var mon=new Date(base),now=new Date();
-  now.setHours(0,0,0,0);
-  for(var i=0;i<7;i++){
-    var d=new Date(mon);
-    d.setDate(mon.getDate()+i);
-    if(d.getTime()===now.getTime())return i;
-  }
-  return -1;
+
+function mondayKey(m){
+  // YYYY-MM-DD en heure locale pour éviter les décalages UTC
+  var y=m.getFullYear();
+  var mo=String(m.getMonth()+1).padStart(2,'0');
+  var d=String(m.getDate()).padStart(2,'0');
+  return y+'-'+mo+'-'+d;
 }
- 
-function storageKey(){return 'horaires_'+weekInput.value;}
- 
+
+function storageKey(){return 'horaires_'+mondayKey(currentMonday);}
+
+function updateWeekLabel(){
+  var end=new Date(currentMonday);end.setDate(end.getDate()+6);
+  var fmt=function(d){return d.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});};
+  document.getElementById('week-label').textContent=fmt(currentMonday)+' – '+fmt(end);
+}
+
+function shiftWeek(dir){
+  currentMonday=new Date(currentMonday);
+  currentMonday.setDate(currentMonday.getDate()+dir*7);
+  updateWeekLabel();
+  buildGrid();
+}
+
+function openCal(){
+  var hd=document.getElementById('hidden-date');
+  hd.value=mondayKey(currentMonday);
+  hd.showPicker?hd.showPicker():hd.click();
+}
+
+document.getElementById('hidden-date').addEventListener('change',function(){
+  var val=this.value;
+  if(!val)return;
+  // Construire la date en heure locale
+  var parts=val.split('-');
+  var picked=new Date(+parts[0],+parts[1]-1,+parts[2]);
+  currentMonday=getMonday(picked);
+  updateWeekLabel();
+  buildGrid();
+});
+
+// --- PARSING ---
+function parseTime(v){
+  if(!v||typeof v!=='string')return null;
+  v=v.trim().replace(/\s/g,'');
+  if(!v)return null;
+  var m;
+  m=v.match(/^(\d{1,2})[h:.](\d{2})$/i);
+  if(m){var h=+m[1],mn=+m[2];if(h<=23&&mn<=59)return h+mn/60;return null;}
+  m=v.match(/^(\d{2})(\d{2})$/);
+  if(m){var h2=+m[1],mn2=+m[2];if(h2<=23&&mn2<=59)return h2+mn2/60;return null;}
+  m=v.match(/^(\d{1,2})$/);
+  if(m){var h3=+m[1];if(h3<=23)return h3;return null;}
+  return null;
+}
+
+function rangeH(s,e){
+  var sv=parseTime(s),ev=parseTime(e);
+  if(sv===null||ev===null||isNaN(sv)||isNaN(ev))return 0;
+  var diff=ev-sv;
+  if(diff<0)diff+=24;
+  if(diff>16)return 0;
+  return diff;
+}
+
+function parsePause(v){
+  if(!v||typeof v!=='string')return 0;
+  v=v.trim();if(!v)return 0;
+  var m;
+  m=v.match(/^(\d+)h(\d*)$/i);if(m)return Math.min(600,+m[1]*60+(+m[2]||0));
+  m=v.match(/^(\d+)min$/i);if(m)return Math.min(600,+m[1]);
+  m=v.match(/^(\d+)$/);if(m)return Math.min(600,+m[1]);
+  return 0;
+}
+
+function fmtH(h){
+  if(!h||isNaN(h)||h<0)h=0;
+  var hh=Math.floor(h),mm=Math.round((h-hh)*60);
+  if(mm===60){hh++;mm=0;}
+  return hh+'h'+String(mm).padStart(2,'0');
+}
+function fmt2(n){return(!n||isNaN(n))?'0,00':n.toFixed(2).replace('.',',');}
+
+// --- DONNEES ---
+function getDayData(i){
+  function g(k){var el=document.querySelector('[data-day="'+i+'"][data-key="'+k+'"]');return el?el.value:'';}
+  return{p1s:g('p1s'),p1e:g('p1e'),p2s:g('p2s'),p2e:g('p2e'),pause:g('pause')};
+}
+
+function calcDay(i){
+  var d=getDayData(i);
+  var brut=rangeH(d.p1s,d.p1e)+rangeH(d.p2s,d.p2e);
+  var pauseH=parsePause(d.pause)/60;
+  return{brut:brut,pauseH:pauseH,net:Math.max(0,brut-pauseH),data:d};
+}
+
+function calcDayFromRaw(data,i){
+  var p1s=data[i+'_p1s']||'',p1e=data[i+'_p1e']||'';
+  var p2s=data[i+'_p2s']||'',p2e=data[i+'_p2e']||'';
+  var pause=data[i+'_pause']||'';
+  return Math.max(0,rangeH(p1s,p1e)+rangeH(p2s,p2e)-parsePause(pause)/60);
+}
+
 function saveData(){
   var data={};
   DAYS.forEach(function(_,i){
@@ -202,7 +298,7 @@ function saveData(){
   s.textContent='— Sauvegardé ✓';
   setTimeout(function(){s.textContent='';},2000);
 }
- 
+
 function loadData(){
   var raw='';
   try{raw=localStorage.getItem(storageKey())||'';}catch(e){}
@@ -216,80 +312,31 @@ function loadData(){
     });
   });
   DAYS.forEach(function(_,i){refreshPreview(i);});
-  recalcAll();
 }
- 
-// Parse "10:30" "10h30" "1030" "10.30" "10" => heures décimales
-function parseTime(v){
-  if(!v||typeof v!=='string')return null;
-  v=v.trim().replace(/\s/g,'');
-  if(v==='')return null;
-  var m;
-  m=v.match(/^(\d{1,2})[h:.](\d{2})$/i);
-  if(m){var h=+m[1],mn=+m[2];if(h<=23&&mn<=59)return h+mn/60;return null;}
-  m=v.match(/^(\d{2})(\d{2})$/);
-  if(m){var h2=+m[1],mn2=+m[2];if(h2<=23&&mn2<=59)return h2+mn2/60;return null;}
-  m=v.match(/^(\d{1,2})$/);
-  if(m){var h3=+m[1];if(h3<=23)return h3;return null;}
-  return null;
+
+// --- AFFICHAGE ---
+function getDayDate(i){
+  var d=new Date(currentMonday);d.setDate(d.getDate()+i);
+  return d.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
 }
- 
-function rangeH(s,e){
-  var sv=parseTime(s),ev=parseTime(e);
-  if(sv===null||ev===null||isNaN(sv)||isNaN(ev))return 0;
-  var diff=ev-sv;
-  if(diff<0)diff+=24;
-  if(diff>16)return 0;
-  return diff;
+
+function todayIndex(){
+  var now=new Date();now.setHours(0,0,0,0);
+  for(var i=0;i<7;i++){
+    var d=new Date(currentMonday);d.setDate(d.getDate()+i);
+    if(d.getTime()===now.getTime())return i;
+  }
+  return -1;
 }
- 
-function parsePause(v){
-  if(!v||typeof v!=='string')return 0;
-  v=v.trim();
-  if(v==='')return 0;
-  var m;
-  m=v.match(/^(\d+)h(\d*)$/i);if(m)return Math.min(600,+m[1]*60+(+m[2]||0));
-  m=v.match(/^(\d+)min$/i);if(m)return Math.min(600,+m[1]);
-  m=v.match(/^(\d+)$/);if(m)return Math.min(600,+m[1]);
-  return 0;
-}
- 
-function fmtH(h){
-  if(isNaN(h)||h<0)h=0;
-  var hh=Math.floor(h),mm=Math.round((h-hh)*60);
-  if(mm===60){hh++;mm=0;}
-  return hh+'h'+String(mm).padStart(2,'0');
-}
-function fmt2(n){return isNaN(n)?'0,00':n.toFixed(2).replace('.',',');}
- 
-function getDayData(i){
-  function g(k){var el=document.querySelector('[data-day="'+i+'"][data-key="'+k+'"]');return el?el.value:'';}
-  return{p1s:g('p1s'),p1e:g('p1e'),p2s:g('p2s'),p2e:g('p2e'),pause:g('pause')};
-}
- 
-function calcDay(i){
-  var d=getDayData(i);
-  var brut=rangeH(d.p1s,d.p1e)+rangeH(d.p2s,d.p2e);
-  var pauseH=parsePause(d.pause)/60;
-  return{brut:brut,pauseH:pauseH,net:Math.max(0,brut-pauseH),data:d};
-}
- 
-function calcDayRaw(data,i){
-  var p1s=data[i+'_p1s']||'',p1e=data[i+'_p1e']||'';
-  var p2s=data[i+'_p2s']||'',p2e=data[i+'_p2e']||'';
-  var pause=data[i+'_pause']||'';
-  var brut=rangeH(p1s,p1e)+rangeH(p2s,p2e);
-  return Math.max(0,brut-parsePause(pause)/60);
-}
- 
+
 function refreshPreview(i){
   var c=calcDay(i),d=c.data;
-  var has=d.p1s||d.p1e||d.p2s||d.p2e;
+  var has=!!(d.p1s||d.p1e||d.p2s||d.p2e);
   var dot=document.getElementById('dot-'+i);
   var prev=document.getElementById('prev-'+i);
   var nprev=document.getElementById('nprev-'+i);
   var nfull=document.getElementById('nfull-'+i);
-  if(dot)dot.classList.toggle('has-data',!!has);
+  if(dot)dot.classList.toggle('has-data',has);
   if(prev){
     if(has){
       var lines=[];
@@ -302,12 +349,16 @@ function refreshPreview(i){
   if(nprev)nprev.textContent=has?fmtH(c.net):'';
   if(nfull)nfull.querySelector('.val').textContent=has?'net : '+fmtH(c.net):'net : —';
 }
- 
+
+// --- RECALCUL GLOBAL ---
 function recalcAll(){
   // Résumé semaine
   var tb=0,tp=0,tn=0,dw=0;
   DAYS.forEach(function(_,i){
     var c=calcDay(i);
+    if(isNaN(c.brut))c.brut=0;
+    if(isNaN(c.pauseH))c.pauseH=0;
+    if(isNaN(c.net))c.net=0;
     tb+=c.brut;tp+=c.pauseH;tn+=c.net;
     if(c.brut>0)dw++;
   });
@@ -315,25 +366,26 @@ function recalcAll(){
   document.getElementById('total-pause').textContent=fmtH(tp);
   document.getElementById('total-net').textContent=fmtH(tn);
   document.getElementById('avg-net').textContent=fmtH(dw>0?tn/dw:0);
-  // Calcul mois
-  calcMonth();
+  // Calcul mois (après un court délai pour laisser localStorage se mettre à jour)
+  setTimeout(calcMonth,50);
 }
- 
+
+// --- CALCUL MOIS ---
 function calcMonth(){
-  var base=weekInput.value;
-  if(!base)return;
-  var ref=new Date(base);
-  var my=ref.getMonth(),yr=ref.getFullYear();
+  var my=currentMonday.getMonth();
+  var yr=currentMonday.getFullYear();
   var totalNet=0,totalDays=0;
-  // premier lundi avant ou égal au 1er du mois
-  var cur=new Date(yr,my,1);
-  var wd=cur.getDay();
-  cur.setDate(cur.getDate()-(wd===0?6:wd-1));
+  // Premier lundi avant ou égal au 1er du mois
+  var first=new Date(yr,my,1);
+  var wd=first.getDay();
+  var cur=new Date(first);
+  cur.setDate(first.getDate()-(wd===0?6:wd-1));
+  cur.setHours(0,0,0,0);
   var last=new Date(yr,my+1,0);
-  var security=0;
-  while(cur<=last&&security<10){
-    security++;
-    var wk=cur.toISOString().slice(0,10);
+  var guard=0;
+  while(cur<=last&&guard<10){
+    guard++;
+    var wk=mondayKey(cur);
     var raw='';
     try{raw=localStorage.getItem('horaires_'+wk)||'';}catch(e){}
     var data={};
@@ -341,12 +393,12 @@ function calcMonth(){
     for(var i=0;i<7;i++){
       var dd=new Date(cur);dd.setDate(cur.getDate()+i);
       if(dd.getMonth()!==my)continue;
-      var net=calcDayRaw(data,i);
-      if(net>0){totalNet+=net;totalDays++;}
+      var net=calcDayFromRaw(data,i);
+      if(!isNaN(net)&&net>0){totalNet+=net;totalDays++;}
     }
     cur.setDate(cur.getDate()+7);
   }
-  // Params
+  // Paramètres
   var tauxBase=parseFloat(document.getElementById('taux-base').value)||12.02;
   var hContrat=parseFloat(document.getElementById('h-contrat').value)||151.67;
   var repasVal=parseFloat(document.getElementById('repas').value)||4.25;
@@ -371,13 +423,14 @@ function calcMonth(){
   document.getElementById('salary-gross').textContent='Brut : '+fmt2(brutTotal)+' €';
   document.getElementById('salary-note').textContent='dont '+totalDays+' repas × '+fmt2(repasVal)+' €';
 }
- 
+
+// --- GRILLE ---
 function buildGrid(){
   var list=document.getElementById('week-list');
   list.innerHTML='';
   var ti=todayIndex();
   DAYS.forEach(function(day,i){
-    var date=getDayDate(i),isToday=(i===ti);
+    var isToday=(i===ti);
     var row=document.createElement('div');row.className='day-row';
     var head=document.createElement('div');head.className='day-head';
     head.setAttribute('onclick','toggleDay('+i+')');
@@ -385,7 +438,7 @@ function buildGrid(){
       '<div class="day-dot'+(isToday?' today':'')+'" id="dot-'+i+'">'+day.short+'</div>'+
       '<div class="day-info">'+
         '<div class="day-name">'+day.long+(isToday?' <span style="font-size:10px;color:#7F77DD;font-weight:400">aujourd\'hui</span>':'')+'</div>'+
-        '<div class="day-date">'+date+'</div>'+
+        '<div class="day-date">'+getDayDate(i)+'</div>'+
       '</div>'+
       '<div class="day-right">'+
         '<div class="day-preview" id="prev-'+i+'">—</div>'+
@@ -420,47 +473,41 @@ function buildGrid(){
     list.appendChild(row);
     if(isToday)toggleDay(i,true);
   });
+  // Attacher les events
   document.querySelectorAll('[data-day]').forEach(function(inp){
     inp.addEventListener('input',function(){
       var i=parseInt(inp.dataset.day,10);
       refreshPreview(i);
-      recalcAll();
       saveData();
+      recalcAll();
     });
   });
   loadData();
+  recalcAll();
   checkBanner();
 }
- 
-function getDayDate(i){
-  var base=weekInput.value;if(!base)return'';
-  var d=new Date(base);d.setDate(d.getDate()+i);
-  return d.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
-}
- 
+
 function toggleDay(i,force){
   var b=document.getElementById('body-'+i);
   if(!b)return;
   if(force===true){b.classList.add('open');return;}
   b.classList.toggle('open');
 }
- 
+
 function toggleSettings(){
   document.getElementById('settings-drawer').classList.toggle('open');
 }
- 
+
 function checkBanner(){
   var now=new Date(),day=now.getDay();
   var isEnd=(day===5&&now.getHours()>=18)||day===6||day===0;
-  var base=weekInput.value;if(!base)return;
-  var mon=new Date(base),end=new Date(mon);
-  end.setDate(mon.getDate()+6);end.setHours(23,59,59);
-  var isCurrent=now>=mon&&now<=end;
+  var end=new Date(currentMonday);end.setDate(end.getDate()+6);end.setHours(23,59,59);
+  var isCurrent=now>=currentMonday&&now<=end;
   document.getElementById('export-banner').classList.toggle('show',isEnd&&isCurrent);
 }
- 
+
 function exportCSV(){
-  var week=weekInput.value||'semaine';
+  var week=mondayKey(currentMonday);
   var csv='Jour,Plage1 debut,Plage1 fin,Plage2 debut,Plage2 fin,Pauses min,Temps brut,Temps net\n';
   DAYS.forEach(function(day,i){
     var d=getDayData(i),c=calcDay(i);
@@ -470,7 +517,7 @@ function exportCSV(){
   var a=document.createElement('a');
   a.href=URL.createObjectURL(blob);a.download='horaires_'+week+'.csv';a.click();
 }
- 
+
 function resetWeek(){
   if(!confirm('Réinitialiser tous les horaires de cette semaine ?'))return;
   try{localStorage.removeItem(storageKey());}catch(e){}
@@ -478,11 +525,12 @@ function resetWeek(){
   DAYS.forEach(function(_,i){refreshPreview(i);});
   recalcAll();
 }
- 
+
 ['taux-base','h-contrat','repas','taux-charges'].forEach(function(id){
   document.getElementById(id).addEventListener('input',calcMonth);
 });
-weekInput.addEventListener('change',function(){buildGrid();});
+
+updateWeekLabel();
 buildGrid();
 </script>
 </body>
