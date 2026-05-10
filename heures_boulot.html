@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Horaires">
+<title>Horaires de travail</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f2f2f7;color:#1a1a1a;font-size:14px;min-height:100vh;padding-bottom:env(safe-area-inset-bottom)}
+
+/* NAV */
+.nav{background:#fff;border-bottom:1px solid #e5e5e5;display:flex;align-items:center;justify-content:space-between;padding:0 16px;height:52px;position:sticky;top:0;z-index:100;padding-top:env(safe-area-inset-top)}
+.nav-title{font-size:15px;font-weight:600;color:#1a1a1a}
+.nav-week{display:flex;align-items:center;gap:6px}
+.nav-week label{font-size:12px;color:#888}
+.nav-week input[type=date]{font-size:12px;border:1px solid #ddd;border-radius:6px;padding:3px 8px;background:#fff;color:#1a1a1a;max-width:130px}
+
+/* MAIN */
+.main{max-width:640px;margin:0 auto;padding:14px 12px}
+
+/* SETTINGS DRAWER */
+.settings-drawer{background:#fff;border-radius:12px;margin-bottom:12px;overflow:hidden;border:1px solid #e5e5e5}
+.settings-head{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;cursor:pointer;user-select:none;-webkit-user-select:none}
+.settings-head-left{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;color:#1a1a1a}
+.settings-arrow{font-size:11px;color:#aaa;transition:transform .2s;display:inline-block}
+.settings-drawer.open .settings-arrow{transform:rotate(180deg)}
+.settings-body{display:none;padding:0 16px 16px;display:none}
+.settings-drawer.open .settings-body{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.setting-field label{font-size:11px;color:#888;display:block;margin-bottom:4px}
+.setting-field input{width:100%;font-size:14px;border:1px solid #e0e0e0;border-radius:7px;padding:8px 10px;background:#fff;color:#1a1a1a}
+.setting-field input:focus{outline:none;border-color:#7F77DD;box-shadow:0 0 0 2px #7F77DD22}
+.setting-hint{font-size:10px;color:#bbb;margin-top:3px}
+
+/* MONTH PANEL */
+.month-panel{background:#1c1c2e;border-radius:14px;padding:16px;margin-bottom:12px}
+.month-panel-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.mp-label{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+.mp-value{font-size:22px;font-weight:700;color:#fff}
+.mp-sub{font-size:11px;color:#666;margin-top:2px}
+.mp-bar-wrap{background:#ffffff18;border-radius:4px;height:5px;margin-top:6px;overflow:hidden}
+.mp-bar{height:5px;border-radius:4px;background:linear-gradient(90deg,#7F77DD,#a78bfa);transition:width .5s cubic-bezier(.4,0,.2,1)}
+.sup-chip{display:inline-block;background:#EF9F2720;color:#EF9F27;font-size:11px;border-radius:20px;padding:2px 8px;margin-top:4px}
+.salary-row{border-top:1px solid #ffffff12;padding-top:12px;display:flex;align-items:flex-end;justify-content:space-between}
+.salary-net{font-size:26px;font-weight:700;color:#4ade80}
+.salary-right{text-align:right}
+.salary-gross{font-size:12px;color:#666}
+.salary-note{font-size:10px;color:#555;margin-top:3px}
+
+/* WEEK LIST */
+.week-list{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
+.day-row{background:#fff;border-radius:12px;border:1px solid #e5e5e5;overflow:hidden}
+.day-head{display:flex;align-items:center;padding:10px 14px;gap:12px;cursor:pointer;user-select:none;-webkit-user-select:none;min-height:58px}
+.day-dot{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;flex-shrink:0;background:#f0f0f5;color:#555}
+.day-dot.has-data{background:#7F77DD18;color:#7F77DD}
+.day-dot.today{background:#7F77DD;color:#fff}
+.day-info{flex:1;min-width:0}
+.day-name{font-size:13px;font-weight:500;color:#1a1a1a}
+.day-date{font-size:11px;color:#aaa}
+.day-right{text-align:right;flex-shrink:0}
+.day-preview{font-size:10px;color:#aaa;line-height:1.5}
+.day-net-preview{font-size:13px;font-weight:600;color:#1a7a45}
+.day-body{display:none;padding:0 14px 12px;flex-direction:column;gap:10px}
+.day-body.open{display:flex}
+.inp-group label{font-size:11px;font-weight:500;display:block;margin-bottom:6px}
+.inp-time-pair{display:flex;align-items:center;gap:6px}
+.inp-time-pair input{flex:1;font-size:15px;border:1px solid #e5e5e5;border-radius:9px;padding:10px 8px;text-align:center;background:#fafafa;color:#1a1a1a;min-width:0}
+.inp-time-pair input:focus{outline:none;border-color:#7F77DD;background:#fff;box-shadow:0 0 0 2px #7F77DD18}
+.inp-time-pair .arr{font-size:12px;color:#ccc;flex-shrink:0}
+.inp-pause input{width:100%;font-size:15px;border:1px solid #e5e5e5;border-radius:9px;padding:10px 8px;text-align:center;background:#fafafa;color:#1a1a1a}
+.inp-pause input:focus{outline:none;border-color:#EF9F27;background:#fff;box-shadow:0 0 0 2px #EF9F2718}
+.day-net-full{background:#f0faf5;border-radius:9px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center}
+.day-net-full .lbl{font-size:12px;color:#888}
+.day-net-full .val{font-size:15px;font-weight:600;color:#1a7a45}
+
+/* WEEK SUMMARY */
+.week-summary{background:#fff;border-radius:12px;border:1px solid #e5e5e5;padding:14px 16px;margin-bottom:12px;display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.ws-item .ws-label{font-size:10px;color:#aaa;margin-bottom:2px}
+.ws-item .ws-val{font-size:16px;font-weight:600;color:#1a1a1a}
+
+/* BTNS */
+.btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+.btn{font-size:13px;padding:10px 16px;border:1px solid #ddd;border-radius:9px;background:#fff;color:#1a1a1a;cursor:pointer;-webkit-appearance:none;flex:1;text-align:center;min-height:44px}
+.btn:hover{background:#f5f5f5}
+.btn:active{transform:scale(0.98);background:#f0f0f0}
+.btn.danger{border-color:#fecaca;color:#dc2626}
+.btn.danger:active{background:#fef2f2}
+.save-notice{font-size:11px;color:#aaa;margin-bottom:4px}
+.save-notice span{color:#1a7a45;font-weight:500}
+
+/* EXPORT REMINDER BANNER */
+.export-banner{background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:14px 16px;margin-bottom:12px;display:none;align-items:center;gap:12px}
+.export-banner.show{display:flex}
+.export-banner-text{flex:1;font-size:13px;color:#92400e;line-height:1.4}
+.export-banner-text strong{display:block;margin-bottom:2px}
+.btn-export-now{font-size:12px;padding:8px 12px;border-radius:8px;background:#f59e0b;border:none;color:#fff;cursor:pointer;white-space:nowrap;min-height:36px;flex-shrink:0}
+.btn-export-now:active{background:#d97706}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-title">⏱ Mes horaires</div>
+  <div class="nav-week">
+    <label>Sem. du</label>
+    <input type="date" id="week-start" />
+  </div>
+</nav>
+
+<div class="main">
+
+  <!-- RAPPEL EXPORT -->
+  <div class="export-banner" id="export-banner">
+    <div class="export-banner-text">
+      <strong>📥 Fin de semaine — pense à exporter !</strong>
+      Sauvegarde tes heures en CSV pour ne pas les perdre si le cache est vidé.
+    </div>
+    <button class="btn-export-now" onclick="exportCSV()">Exporter</button>
+  </div>
+
+  <!-- SETTINGS DRAWER -->
+  <div class="settings-drawer" id="settings-drawer">
+    <div class="settings-head" onclick="toggleSettings()">
+      <div class="settings-head-left"><span>⚙️</span> Paramètres de paie</div>
+      <span class="settings-arrow">&#9660;</span>
+    </div>
+    <div class="settings-body">
+      <div class="setting-field">
+        <label>Taux horaire de base</label>
+        <input type="number" id="taux-base" value="12.02" step="0.01" inputmode="decimal" />
+        <div class="setting-hint">€ / heure</div>
+      </div>
+      <div class="setting-field">
+        <label>Heures contrat / mois</label>
+        <input type="number" id="h-contrat" value="151.67" step="0.01" inputmode="decimal" />
+        <div class="setting-hint">heures contractuelles</div>
+      </div>
+      <div class="setting-field">
+        <label>Avantage repas / jour</label>
+        <input type="number" id="repas" value="4.25" step="0.25" inputmode="decimal" />
+        <div class="setting-hint">€ par jour travaillé</div>
+      </div>
+      <div class="setting-field">
+        <label>Taux charges salariales</label>
+        <input type="number" id="taux-charges" value="22.6" step="0.1" inputmode="decimal" />
+        <div class="setting-hint">% (fiche de paie)</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MONTH PANEL -->
+  <div class="month-panel">
+    <div class="month-panel-grid">
+      <div>
+        <div class="mp-label">Heures ce mois</div>
+        <div class="mp-value" id="month-h">0h00</div>
+        <div class="mp-sub" id="month-pct">0% du contrat</div>
+        <div class="mp-bar-wrap"><div class="mp-bar" id="month-bar" style="width:0%"></div></div>
+      </div>
+      <div>
+        <div class="mp-label">Heures sup.</div>
+        <div class="mp-value" id="month-sup" style="color:#EF9F27">0h00</div>
+        <div class="sup-chip" id="sup-gain">+ 0,00 € brut</div>
+      </div>
+    </div>
+    <div class="salary-row">
+      <div>
+        <div class="mp-label">Salaire net estimé</div>
+        <div class="salary-net" id="salary-net">0,00 €</div>
+      </div>
+      <div class="salary-right">
+        <div class="salary-gross" id="salary-gross">Brut : 0,00 €</div>
+        <div class="salary-note" id="salary-note">dont 0 repas × 4,25 €</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- WEEK LIST -->
+  <div class="week-list" id="week-list"></div>
+
+  <!-- WEEK SUMMARY -->
+  <div class="week-summary">
+    <div class="ws-item"><div class="ws-label">Brut</div><div class="ws-val" id="total-brut">0h00</div></div>
+    <div class="ws-item"><div class="ws-label">Pauses</div><div class="ws-val" id="total-pause">0h00</div></div>
+    <div class="ws-item"><div class="ws-label">Net</div><div class="ws-val" id="total-net">0h00</div></div>
+    <div class="ws-item"><div class="ws-label">Moy./jour</div><div class="ws-val" id="avg-net">0h00</div></div>
+  </div>
+
+  <div class="btn-row">
+    <button class="btn" onclick="exportCSV()">&#8659; Exporter CSV</button>
+    <button class="btn danger" onclick="resetWeek()">&#8635; Réinitialiser</button>
+  </div>
+  <p class="save-notice">&#128190; Sauvegarde automatique <span id="save-status"></span></p>
+
+</div>
+
+<script>
+var DAYS=[
+  {short:'Lun',long:'Lundi'},
+  {short:'Mar',long:'Mardi'},
+  {short:'Mer',long:'Mercredi'},
+  {short:'Jeu',long:'Jeudi'},
+  {short:'Ven',long:'Vendredi'},
+  {short:'Sam',long:'Samedi'},
+  {short:'Dim',long:'Dimanche'}
+];
+var KEYS=['p1s','p1e','p2s','p2e','pause'];
+var weekInput=document.getElementById('week-start');
+
+function getTodayMonday(){
+  var d=new Date();var day=d.getDay();
+  d.setDate(d.getDate()+(day===0?-6:1-day));
+  return d.toISOString().slice(0,10);
+}
+weekInput.value=getTodayMonday();
+
+function todayIndex(){
+  var base=weekInput.value;if(!base)return -1;
+  var mon=new Date(base);var now=new Date();now.setHours(0,0,0,0);
+  for(var i=0;i<7;i++){var d=new Date(mon);d.setDate(mon.getDate()+i);if(d.getTime()===now.getTime())return i;}
+  return -1;
+}
+
+function isEndOfWeek(){
+  var now=new Date();var day=now.getDay();
+  // Vendredi soir (>=18h), Samedi ou Dimanche
+  return(day===5&&now.getHours()>=18)||day===6||day===0;
+}
+
+function checkExportReminder(){
+  var banner=document.getElementById('export-banner');
+  var base=weekInput.value;
+  // Montrer seulement si on est sur la semaine en cours ET c'est fin de semaine
+  if(!base)return;
+  var mon=new Date(base);var now=new Date();
+  var startOfNow=new Date(now);startOfNow.setHours(0,0,0,0);
+  var endOfWeek=new Date(mon);endOfWeek.setDate(mon.getDate()+6);endOfWeek.setHours(23,59,59);
+  var isCurrentWeek=now>=mon&&now<=endOfWeek;
+  if(isCurrentWeek&&isEndOfWeek()){
+    banner.classList.add('show');
+  } else {
+    banner.classList.remove('show');
+  }
+}
+
+function storageKey(w){return'horaires_'+(w||weekInput.value);}
+
+function saveData(){
+  var data={};
+  DAYS.forEach(function(_,i){
+    KEYS.forEach(function(key){
+      var el=document.querySelector('[data-day="'+i+'"][data-key="'+key+'"]');
+      if(el)data[i+'_'+key]=el.value;
+    });
+  });
+  localStorage.setItem(storageKey(),JSON.stringify(data));
+  var s=document.getElementById('save-status');
+  s.textContent='— Sauvegardé ✓';
+  setTimeout(function(){s.textContent='';},2000);
+}
+
+function loadData(){
+  var raw=localStorage.getItem(storageKey());
+  if(!raw)return;
+  var data=JSON.parse(raw);
+  DAYS.forEach(function(_,i){
+    KEYS.forEach(function(key){
+      var el=document.querySelector('[data-day="'+i+'"][data-key="'+key+'"]');
+      if(el&&data[i+'_'+key]!==undefined)el.value=data[i+'_'+key];
+    });
+  });
+  DAYS.forEach(function(_,i){refreshDayPreview(i);});
+  updateSummary();updateSalary();
+}
+
+function getDayDate(i){
+  var base=weekInput.value;if(!base)return'';
+  var d=new Date(base);d.setDate(d.getDate()+i);
+  return d.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
+}
+
+function timeToH(val){
+  if(!val||val.trim()==='')return null;
+  var m=val.trim().match(/^(\d{1,2})[h:](\d{2})$/i);
+  if(m)return parseInt(m[1])+parseInt(m[2])/60;
+  var m2=val.trim().match(/^(\d{1,2})$/);
+  if(m2)return parseInt(m2[1]);
+  return null;
+}
+
+function rangeH(s,e){
+  var sv=timeToH(s),ev=timeToH(e);
+  if(sv===null||ev===null)return 0;
+  var diff=ev-sv;if(diff<0)diff+=24;return diff;
+}
+
+function parsePauseMin(val){
+  if(!val||val.trim()==='')return 0;
+  var v=val.trim();
+  var mh=v.match(/^(\d+)h(\d*)$/i);if(mh)return parseInt(mh[1])*60+parseInt(mh[2]||0);
+  var mm=v.match(/^(\d+)min$/i);if(mm)return parseInt(mm[1]);
+  var mn=v.match(/^(\d+)$/);if(mn)return parseInt(mn[1]);
+  return 0;
+}
+
+function formatH(h){
+  if(h<0)h=0;
+  var hh=Math.floor(h);var mm=Math.round((h-hh)*60);
+  return hh+'h'+String(mm).padStart(2,'0');
+}
+
+function fmt2(n){return n.toFixed(2).replace('.',',');}
+
+function getDayData(i){
+  function g(key){return(document.querySelector('[data-day="'+i+'"][data-key="'+key+'"]')||{}).value||'';}
+  return{p1s:g('p1s'),p1e:g('p1e'),p2s:g('p2s'),p2e:g('p2e'),pause:g('pause')};
+}
+
+function calcDay(i){
+  var d=getDayData(i);
+  var brut=rangeH(d.p1s,d.p1e)+rangeH(d.p2s,d.p2e);
+  var pauseH=parsePauseMin(d.pause)/60;
+  return{brut:brut,pauseH:pauseH,net:Math.max(0,brut-pauseH),data:d};
+}
+
+function refreshDayPreview(i){
+  var c=calcDay(i);var d=c.data;
+  var hasData=d.p1s||d.p1e||d.p2s||d.p2e;
+  var dot=document.getElementById('dot-'+i);
+  var preview=document.getElementById('preview-'+i);
+  var netPrev=document.getElementById('netprev-'+i);
+  var netFull=document.getElementById('netfull-'+i);
+  if(dot)dot.classList.toggle('has-data',!!hasData);
+  if(preview){
+    if(hasData){
+      var lines=[];
+      if(d.p1s||d.p1e)lines.push((d.p1s||'?')+' → '+(d.p1e||'?'));
+      if(d.p2s||d.p2e)lines.push((d.p2s||'?')+' → '+(d.p2e||'?'));
+      if(d.pause)lines.push('pause '+d.pause+'min');
+      preview.innerHTML=lines.join('<br>');
+    } else {preview.textContent='—';}
+  }
+  if(netPrev)netPrev.textContent=hasData?formatH(c.net):'';
+  if(netFull)netFull.querySelector('.val').textContent=hasData?'net : '+formatH(c.net):'net : —';
+}
+
+function buildGrid(){
+  var list=document.getElementById('week-list');
+  list.innerHTML='';
+  var todayIdx=todayIndex();
+
+  DAYS.forEach(function(day,i){
+    var date=getDayDate(i);
+    var isToday=(i===todayIdx);
+    var row=document.createElement('div');
+    row.className='day-row';row.id='dayrow-'+i;
+
+    var head=document.createElement('div');
+    head.className='day-head';
+    head.onclick=function(){toggleDay(i);};
+    head.innerHTML=
+      '<div class="day-dot'+(isToday?' today':'')+'" id="dot-'+i+'">'+day.short+'</div>'
+      +'<div class="day-info">'
+        +'<div class="day-name">'+day.long+(isToday?' <span style="font-size:10px;color:#7F77DD;font-weight:400">aujourd\'hui</span>':'')+'</div>'
+        +'<div class="day-date">'+date+'</div>'
+      +'</div>'
+      +'<div class="day-right">'
+        +'<div class="day-preview" id="preview-'+i+'">—</div>'
+        +'<div class="day-net-preview" id="netprev-'+i+'"></div>'
+      +'</div>';
+    row.appendChild(head);
+
+    var body=document.createElement('div');
+    body.className='day-body';body.id='daybody-'+i;
+    body.innerHTML=
+      '<div class="inp-group">'
+        +'<label style="color:#7F77DD">⬤ Plage 1</label>'
+        +'<div class="inp-time-pair">'
+          +'<input type="text" inputmode="numeric" placeholder="10:00" data-day="'+i+'" data-key="p1s" />'
+          +'<span class="arr">→</span>'
+          +'<input type="text" inputmode="numeric" placeholder="14:30" data-day="'+i+'" data-key="p1e" />'
+        +'</div>'
+      +'</div>'
+      +'<div class="inp-group">'
+        +'<label style="color:#534AB7">⬤ Plage 2</label>'
+        +'<div class="inp-time-pair">'
+          +'<input type="text" inputmode="numeric" placeholder="17:00" data-day="'+i+'" data-key="p2s" />'
+          +'<span class="arr">→</span>'
+          +'<input type="text" inputmode="numeric" placeholder="00:15" data-day="'+i+'" data-key="p2e" />'
+        +'</div>'
+      +'</div>'
+      +'<div class="inp-group inp-pause">'
+        +'<label style="color:#BA7517">⬤ Pauses (min)</label>'
+        +'<input type="text" inputmode="numeric" placeholder="ex: 45" data-day="'+i+'" data-key="pause" />'
+      +'</div>'
+      +'<div class="day-net-full" id="netfull-'+i+'"><span class="lbl">Temps net</span><span class="val">net : —</span></div>';
+    row.appendChild(body);
+    list.appendChild(row);
+
+    if(isToday)toggleDay(i,true);
+  });
+
+  document.querySelectorAll('[data-day]').forEach(function(inp){
+    inp.addEventListener('input',function(){
+      var i=parseInt(inp.dataset.day);
+      refreshDayPreview(i);updateSummary();saveData();updateSalary();
+    });
+  });
+
+  loadData();
+  checkExportReminder();
+}
+
+function toggleDay(i,forceOpen){
+  var body=document.getElementById('daybody-'+i);
+  if(!body)return;
+  if(forceOpen){body.classList.add('open');return;}
+  body.classList.toggle('open');
+}
+
+function toggleSettings(){
+  var d=document.getElementById('settings-drawer');
+  d.classList.toggle('open');
+}
+
+function updateSummary(){
+  var tb=0,tp=0,tn=0,dw=0;
+  DAYS.forEach(function(_,i){var c=calcDay(i);tb+=c.brut;tp+=c.pauseH;tn+=c.net;if(c.brut>0)dw++;});
+  document.getElementById('total-brut').textContent=formatH(tb);
+  document.getElementById('total-pause').textContent=formatH(tp);
+  document.getElementById('total-net').textContent=formatH(tn);
+  document.getElementById('avg-net').textContent=formatH(dw>0?tn/dw:0);
+}
+
+function computeMonth(){
+  var base=weekInput.value;if(!base)return{net:0,days:0};
+  var ref=new Date(base);var my=ref.getMonth();var yr=ref.getFullYear();
+  var totalNet=0,totalDays=0;
+  var first=new Date(yr,my,1);var last=new Date(yr,my+1,0);
+  var cur=new Date(first);var wd=cur.getDay();cur.setDate(cur.getDate()-(wd===0?6:wd-1));
+  while(cur<=last){
+    var wKey='horaires_'+cur.toISOString().slice(0,10);
+    var raw=localStorage.getItem(wKey);
+    for(var i=0;i<7;i++){
+      var dayDate=new Date(cur);dayDate.setDate(cur.getDate()+i);
+      if(dayDate.getMonth()!==my)continue;
+      var val=0,pval=0;
+      if(raw){
+        var data=JSON.parse(raw);
+        val=rangeH(data[i+'_p1s']||'',data[i+'_p1e']||'')+rangeH(data[i+'_p2s']||'',data[i+'_p2e']||'');
+        pval=parsePauseMin(data[i+'_pause']||'')/60;
+      }
+      var net=Math.max(0,val-pval);
+      if(net>0){totalNet+=net;totalDays++;}
+    }
+    cur.setDate(cur.getDate()+7);
+  }
+  return{net:totalNet,days:totalDays};
+}
+
+function updateSalary(){
+  var tauxBase=parseFloat(document.getElementById('taux-base').value)||12.02;
+  var hContrat=parseFloat(document.getElementById('h-contrat').value)||151.67;
+  var repasVal=parseFloat(document.getElementById('repas').value)||4.25;
+  var charges=parseFloat(document.getElementById('taux-charges').value)||22.6;
+  var tauxNet=(100-charges)/100;var tauxSup=tauxBase*1.10;
+  var month=computeMonth();
+  var totalH=month.net;var jours=month.days;
+  var hSup=Math.max(0,totalH-hContrat);
+  var hBase=Math.min(totalH,hContrat);
+  var brutBase=hBase*tauxBase;var brutSup=hSup*tauxSup;
+  var brutRepas=jours*repasVal;var brutTotal=brutBase+brutSup+brutRepas;
+  var netEstime=(brutBase+brutSup)*tauxNet+brutRepas;
+  var pct=Math.min(100,Math.round(totalH/hContrat*100));
+  document.getElementById('month-h').textContent=formatH(totalH);
+  document.getElementById('month-pct').textContent=pct+'% des '+formatH(hContrat);
+  document.getElementById('month-bar').style.width=pct+'%';
+  document.getElementById('month-bar').style.background=pct>=100?'linear-gradient(90deg,#4ade80,#22c55e)':'linear-gradient(90deg,#7F77DD,#a78bfa)';
+  document.getElementById('month-sup').textContent=formatH(hSup);
+  document.getElementById('sup-gain').textContent='+ '+fmt2(brutSup)+' € brut';
+  document.getElementById('salary-net').textContent=fmt2(netEstime)+' €';
+  document.getElementById('salary-gross').textContent='Brut : '+fmt2(brutTotal)+' €';
+  document.getElementById('salary-note').textContent='dont '+jours+' repas × '+fmt2(repasVal)+' €';
+}
+
+function exportCSV(){
+  var week=weekInput.value||'semaine';
+  var csv='Jour,Plage1 debut,Plage1 fin,Plage2 debut,Plage2 fin,Pauses (min),Temps brut,Temps net\n';
+  DAYS.forEach(function(day,i){
+    var d=getDayData(i);var c=calcDay(i);
+    csv+=day.long+','+d.p1s+','+d.p1e+','+d.p2s+','+d.p2e+','+d.pause+','+formatH(c.brut)+','+formatH(c.net)+'\n';
+  });
+  var blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);a.download='horaires_'+week+'.csv';a.click();
+}
+
+function resetWeek(){
+  if(!confirm('Réinitialiser tous les horaires de cette semaine ?'))return;
+  localStorage.removeItem(storageKey());
+  document.querySelectorAll('[data-day]').forEach(function(i){i.value='';});
+  DAYS.forEach(function(_,i){refreshDayPreview(i);});
+  updateSummary();updateSalary();
+}
+
+['taux-base','h-contrat','repas','taux-charges'].forEach(function(id){
+  document.getElementById(id).addEventListener('input',updateSalary);
+});
+weekInput.addEventListener('change',function(){buildGrid();checkExportReminder();});
+buildGrid();
+</script>
+</body>
+</html>
