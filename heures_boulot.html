@@ -10,14 +10,29 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f2f2f7;color:#1a1a1a;font-size:14px;min-height:100vh;padding-bottom:env(safe-area-inset-bottom)}
-.nav{background:#fff;border-bottom:1px solid #e5e5e5;display:flex;align-items:center;justify-content:space-between;padding:0 16px;height:52px;position:sticky;top:0;z-index:100}
-.nav-title{font-size:15px;font-weight:600}
-.week-nav{display:flex;align-items:center;gap:6px}
-.week-nav-btn{background:none;border:1px solid #e0e0e0;border-radius:8px;width:32px;height:32px;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#555;-webkit-appearance:none}
-.week-nav-btn:active{background:#f0f0f0}
-.week-label{font-size:12px;font-weight:500;color:#1a1a1a;min-width:90px;text-align:center;cursor:pointer;padding:4px 6px;border-radius:6px;border:1px solid #e0e0e0}
-.week-label:active{background:#f0f0f0}
-input#hidden-date{position:absolute;opacity:0;pointer-events:none;width:1px;height:1px}
+.nav{background:#fff;border-bottom:1px solid #e5e5e5;display:flex;align-items:center;justify-content:space-between;padding:0 12px;height:52px;position:sticky;top:0;z-index:100}
+.nav-title{font-size:15px;font-weight:600;flex-shrink:0}
+.week-nav{display:flex;align-items:center;gap:4px}
+.nav-btn{background:none;border:1px solid #e0e0e0;border-radius:8px;width:32px;height:32px;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#444;flex-shrink:0;-webkit-appearance:none}
+.nav-btn:active{background:#f0f0f0}
+/* Le champ date est rendu visible mais stylisé pour ressembler à un label */
+.date-picker-wrap{position:relative;min-width:110px}
+.date-picker-wrap input[type=date]{
+  width:100%;
+  font-size:12px;
+  font-weight:500;
+  color:#1a1a1a;
+  border:1px solid #e0e0e0;
+  border-radius:8px;
+  padding:5px 6px;
+  background:#fff;
+  text-align:center;
+  -webkit-appearance:none;
+  appearance:none;
+  cursor:pointer;
+}
+.date-picker-wrap input[type=date]::-webkit-date-and-time-value{text-align:center}
+.week-range{font-size:10px;color:#888;text-align:center;margin-top:2px}
 .main{max-width:640px;margin:0 auto;padding:14px 12px}
 .settings-drawer{background:#fff;border-radius:12px;margin-bottom:12px;overflow:hidden;border:1px solid #e5e5e5}
 .settings-head{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;cursor:pointer;user-select:none;-webkit-user-select:none}
@@ -86,12 +101,14 @@ input#hidden-date{position:absolute;opacity:0;pointer-events:none;width:1px;heig
 </head>
 <body>
 <nav class="nav">
-  <div class="nav-title">⏱ Mes horaires</div>
+  <div class="nav-title">⏱ Horaires</div>
   <div class="week-nav">
-    <button class="week-nav-btn" onclick="shiftWeek(-1)">&#8249;</button>
-    <div class="week-label" id="week-label" onclick="openCal()">— —</div>
-    <button class="week-nav-btn" onclick="shiftWeek(1)">&#8250;</button>
-    <input type="date" id="hidden-date">
+    <button class="nav-btn" onclick="shiftWeek(-1)">&#8249;</button>
+    <div class="date-picker-wrap">
+      <input type="date" id="date-picker">
+      <div class="week-range" id="week-range">—</div>
+    </div>
+    <button class="nav-btn" onclick="shiftWeek(1)">&#8250;</button>
   </div>
 </nav>
 <div class="main">
@@ -170,64 +187,53 @@ input#hidden-date{position:absolute;opacity:0;pointer-events:none;width:1px;heig
 <script>
 var DAYS=[{short:'Lun',long:'Lundi'},{short:'Mar',long:'Mardi'},{short:'Mer',long:'Mercredi'},{short:'Jeu',long:'Jeudi'},{short:'Ven',long:'Vendredi'},{short:'Sam',long:'Samedi'},{short:'Dim',long:'Dimanche'}];
 var KEYS=['p1s','p1e','p2s','p2e','pause'];
-
-// --- GESTION DE LA SEMAINE COURANTE ---
-var currentMonday = getMonday(new Date());
+var currentMonday=getMonday(new Date());
 
 function getMonday(d){
-  var day=d.getDay();
-  var diff=day===0?-6:1-day;
-  var m=new Date(d);
-  m.setDate(d.getDate()+diff);
-  m.setHours(0,0,0,0);
+  var day=d.getDay(),diff=day===0?-6:1-day;
+  var m=new Date(d);m.setDate(d.getDate()+diff);m.setHours(0,0,0,0);
   return m;
 }
 
-function mondayKey(m){
-  // YYYY-MM-DD en heure locale pour éviter les décalages UTC
-  var y=m.getFullYear();
-  var mo=String(m.getMonth()+1).padStart(2,'0');
-  var d=String(m.getDate()).padStart(2,'0');
-  return y+'-'+mo+'-'+d;
+function toLocalISO(d){
+  var y=d.getFullYear();
+  var m=String(d.getMonth()+1).padStart(2,'0');
+  var dd=String(d.getDate()).padStart(2,'0');
+  return y+'-'+m+'-'+dd;
 }
 
-function storageKey(){return 'horaires_'+mondayKey(currentMonday);}
+function fromLocalISO(s){
+  var p=s.split('-');
+  return new Date(+p[0],+p[1]-1,+p[2]);
+}
 
-function updateWeekLabel(){
+function storageKey(){return 'horaires_'+toLocalISO(currentMonday);}
+
+function updateNav(){
   var end=new Date(currentMonday);end.setDate(end.getDate()+6);
   var fmt=function(d){return d.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});};
-  document.getElementById('week-label').textContent=fmt(currentMonday)+' – '+fmt(end);
+  document.getElementById('week-range').textContent=fmt(currentMonday)+' – '+fmt(end);
+  // Mettre à jour le champ date pour refléter le lundi courant
+  document.getElementById('date-picker').value=toLocalISO(currentMonday);
 }
 
 function shiftWeek(dir){
   currentMonday=new Date(currentMonday);
   currentMonday.setDate(currentMonday.getDate()+dir*7);
-  updateWeekLabel();
-  buildGrid();
+  updateNav();buildGrid();
 }
 
-function openCal(){
-  var hd=document.getElementById('hidden-date');
-  hd.value=mondayKey(currentMonday);
-  hd.showPicker?hd.showPicker():hd.click();
-}
-
-document.getElementById('hidden-date').addEventListener('change',function(){
-  var val=this.value;
-  if(!val)return;
-  // Construire la date en heure locale
-  var parts=val.split('-');
-  var picked=new Date(+parts[0],+parts[1]-1,+parts[2]);
+// Quand l'utilisateur choisit une date dans le picker natif iOS
+document.getElementById('date-picker').addEventListener('change',function(){
+  if(!this.value)return;
+  var picked=fromLocalISO(this.value);
   currentMonday=getMonday(picked);
-  updateWeekLabel();
-  buildGrid();
+  updateNav();buildGrid();
 });
 
-// --- PARSING ---
 function parseTime(v){
   if(!v||typeof v!=='string')return null;
-  v=v.trim().replace(/\s/g,'');
-  if(!v)return null;
+  v=v.trim().replace(/\s/g,'');if(!v)return null;
   var m;
   m=v.match(/^(\d{1,2})[h:.](\d{2})$/i);
   if(m){var h=+m[1],mn=+m[2];if(h<=23&&mn<=59)return h+mn/60;return null;}
@@ -241,9 +247,7 @@ function parseTime(v){
 function rangeH(s,e){
   var sv=parseTime(s),ev=parseTime(e);
   if(sv===null||ev===null||isNaN(sv)||isNaN(ev))return 0;
-  var diff=ev-sv;
-  if(diff<0)diff+=24;
-  if(diff>16)return 0;
+  var diff=ev-sv;if(diff<0)diff+=24;if(diff>16)return 0;
   return diff;
 }
 
@@ -265,24 +269,19 @@ function fmtH(h){
 }
 function fmt2(n){return(!n||isNaN(n))?'0,00':n.toFixed(2).replace('.',',');}
 
-// --- DONNEES ---
 function getDayData(i){
   function g(k){var el=document.querySelector('[data-day="'+i+'"][data-key="'+k+'"]');return el?el.value:'';}
   return{p1s:g('p1s'),p1e:g('p1e'),p2s:g('p2s'),p2e:g('p2e'),pause:g('pause')};
 }
-
 function calcDay(i){
   var d=getDayData(i);
   var brut=rangeH(d.p1s,d.p1e)+rangeH(d.p2s,d.p2e);
   var pauseH=parsePause(d.pause)/60;
   return{brut:brut,pauseH:pauseH,net:Math.max(0,brut-pauseH),data:d};
 }
-
 function calcDayFromRaw(data,i){
-  var p1s=data[i+'_p1s']||'',p1e=data[i+'_p1e']||'';
-  var p2s=data[i+'_p2s']||'',p2e=data[i+'_p2e']||'';
-  var pause=data[i+'_pause']||'';
-  return Math.max(0,rangeH(p1s,p1e)+rangeH(p2s,p2e)-parsePause(pause)/60);
+  var brut=rangeH(data[i+'_p1s']||'',data[i+'_p1e']||'')+rangeH(data[i+'_p2s']||'',data[i+'_p2e']||'');
+  return Math.max(0,brut-parsePause(data[i+'_pause']||'')/60);
 }
 
 function saveData(){
@@ -314,12 +313,10 @@ function loadData(){
   DAYS.forEach(function(_,i){refreshPreview(i);});
 }
 
-// --- AFFICHAGE ---
 function getDayDate(i){
   var d=new Date(currentMonday);d.setDate(d.getDate()+i);
   return d.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'});
 }
-
 function todayIndex(){
   var now=new Date();now.setHours(0,0,0,0);
   for(var i=0;i<7;i++){
@@ -350,32 +347,25 @@ function refreshPreview(i){
   if(nfull)nfull.querySelector('.val').textContent=has?'net : '+fmtH(c.net):'net : —';
 }
 
-// --- RECALCUL GLOBAL ---
 function recalcAll(){
-  // Résumé semaine
   var tb=0,tp=0,tn=0,dw=0;
   DAYS.forEach(function(_,i){
     var c=calcDay(i);
-    if(isNaN(c.brut))c.brut=0;
-    if(isNaN(c.pauseH))c.pauseH=0;
-    if(isNaN(c.net))c.net=0;
-    tb+=c.brut;tp+=c.pauseH;tn+=c.net;
+    tb+=isNaN(c.brut)?0:c.brut;
+    tp+=isNaN(c.pauseH)?0:c.pauseH;
+    tn+=isNaN(c.net)?0:c.net;
     if(c.brut>0)dw++;
   });
   document.getElementById('total-brut').textContent=fmtH(tb);
   document.getElementById('total-pause').textContent=fmtH(tp);
   document.getElementById('total-net').textContent=fmtH(tn);
   document.getElementById('avg-net').textContent=fmtH(dw>0?tn/dw:0);
-  // Calcul mois (après un court délai pour laisser localStorage se mettre à jour)
-  setTimeout(calcMonth,50);
+  setTimeout(calcMonth,80);
 }
 
-// --- CALCUL MOIS ---
 function calcMonth(){
-  var my=currentMonday.getMonth();
-  var yr=currentMonday.getFullYear();
+  var my=currentMonday.getMonth(),yr=currentMonday.getFullYear();
   var totalNet=0,totalDays=0;
-  // Premier lundi avant ou égal au 1er du mois
   var first=new Date(yr,my,1);
   var wd=first.getDay();
   var cur=new Date(first);
@@ -385,9 +375,8 @@ function calcMonth(){
   var guard=0;
   while(cur<=last&&guard<10){
     guard++;
-    var wk=mondayKey(cur);
     var raw='';
-    try{raw=localStorage.getItem('horaires_'+wk)||'';}catch(e){}
+    try{raw=localStorage.getItem('horaires_'+toLocalISO(cur))||'';}catch(e){}
     var data={};
     if(raw){try{data=JSON.parse(raw);}catch(e){data={};}}
     for(var i=0;i<7;i++){
@@ -398,7 +387,6 @@ function calcMonth(){
     }
     cur.setDate(cur.getDate()+7);
   }
-  // Paramètres
   var tauxBase=parseFloat(document.getElementById('taux-base').value)||12.02;
   var hContrat=parseFloat(document.getElementById('h-contrat').value)||151.67;
   var repasVal=parseFloat(document.getElementById('repas').value)||4.25;
@@ -424,7 +412,6 @@ function calcMonth(){
   document.getElementById('salary-note').textContent='dont '+totalDays+' repas × '+fmt2(repasVal)+' €';
 }
 
-// --- GRILLE ---
 function buildGrid(){
   var list=document.getElementById('week-list');
   list.innerHTML='';
@@ -473,7 +460,6 @@ function buildGrid(){
     list.appendChild(row);
     if(isToday)toggleDay(i,true);
   });
-  // Attacher les events
   document.querySelectorAll('[data-day]').forEach(function(inp){
     inp.addEventListener('input',function(){
       var i=parseInt(inp.dataset.day,10);
@@ -493,10 +479,7 @@ function toggleDay(i,force){
   if(force===true){b.classList.add('open');return;}
   b.classList.toggle('open');
 }
-
-function toggleSettings(){
-  document.getElementById('settings-drawer').classList.toggle('open');
-}
+function toggleSettings(){document.getElementById('settings-drawer').classList.toggle('open');}
 
 function checkBanner(){
   var now=new Date(),day=now.getDay();
@@ -507,7 +490,7 @@ function checkBanner(){
 }
 
 function exportCSV(){
-  var week=mondayKey(currentMonday);
+  var week=toLocalISO(currentMonday);
   var csv='Jour,Plage1 debut,Plage1 fin,Plage2 debut,Plage2 fin,Pauses min,Temps brut,Temps net\n';
   DAYS.forEach(function(day,i){
     var d=getDayData(i),c=calcDay(i);
@@ -530,7 +513,7 @@ function resetWeek(){
   document.getElementById(id).addEventListener('input',calcMonth);
 });
 
-updateWeekLabel();
+updateNav();
 buildGrid();
 </script>
 </body>
